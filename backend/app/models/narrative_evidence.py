@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Numeric, Text
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, Numeric, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base, TimestampMixin
@@ -16,14 +16,27 @@ if TYPE_CHECKING:
 
 class NarrativeEvidence(TimestampMixin, Base):
     __tablename__ = "narrative_evidence"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["chunk_id", "document_id"],
+            ["document_chunks.id", "document_chunks.document_id"],
+            name="fk_narrative_evidence_chunk_document_consistency",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     narrative_id: Mapped[int] = mapped_column(ForeignKey("narratives.id"), nullable=False)
     document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), nullable=False)
-    chunk_id: Mapped[int | None] = mapped_column(ForeignKey("document_chunks.id"), nullable=True)
+    chunk_id: Mapped[int | None] = mapped_column(nullable=True)
     relevance_score: Mapped[Decimal] = mapped_column(Numeric(8, 6), nullable=False)
     evidence_text: Mapped[str] = mapped_column(Text, nullable=False)
 
     narrative: Mapped[Narrative] = relationship(back_populates="evidence")
-    document: Mapped[Document] = relationship()
-    chunk: Mapped[DocumentChunk | None] = relationship()
+    document: Mapped[Document] = relationship(
+        back_populates="evidence",
+        overlaps="evidence",
+    )
+    chunk: Mapped[DocumentChunk | None] = relationship(
+        back_populates="evidence",
+        overlaps="document,evidence",
+    )

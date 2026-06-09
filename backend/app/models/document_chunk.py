@@ -9,12 +9,14 @@ from app.models import Base
 
 if TYPE_CHECKING:
     from app.models.document import Document
+    from app.models.narrative_evidence import NarrativeEvidence
 
 
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
     __table_args__ = (
         UniqueConstraint("document_id", "chunk_index", name="uq_document_chunks_document_chunk"),
+        UniqueConstraint("id", "document_id", name="uq_document_chunks_id_document"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -26,3 +28,7 @@ class DocumentChunk(Base):
     metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
 
     document: Mapped[Document] = relationship(back_populates="chunks")
+    evidence: Mapped[list[NarrativeEvidence]] = relationship(
+        back_populates="chunk",
+        overlaps="evidence",
+    )

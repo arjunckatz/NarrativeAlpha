@@ -62,6 +62,7 @@ def upgrade() -> None:
         sa.Column("published_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("source_name", sa.String(length=255), nullable=False),
         sa.Column("url", sa.String(length=2048), nullable=True),
+        sa.Column("content_hash", sa.String(length=64), nullable=False),
         sa.Column("raw_text", sa.Text(), nullable=False),
         sa.Column("metadata", sa.JSON(), nullable=False),
         sa.Column(
@@ -75,9 +76,22 @@ def upgrade() -> None:
             name=op.f("ck_documents_document_source_type"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_documents")),
+        sa.UniqueConstraint(
+            "source_type",
+            "ticker",
+            "source_name",
+            "content_hash",
+            name="uq_documents_source_ticker_source_name_content_hash",
+        ),
     )
     op.create_index(op.f("ix_documents_published_at"), "documents", ["published_at"], unique=False)
     op.create_index(op.f("ix_documents_ticker"), "documents", ["ticker"], unique=False)
+    op.create_index(
+        "ix_documents_ticker_published_at",
+        "documents",
+        ["ticker", "published_at"],
+        unique=False,
+    )
 
     op.create_table(
         "events",
@@ -135,6 +149,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_document_chunks")),
         sa.UniqueConstraint("document_id", "chunk_index", name="uq_document_chunks_document_chunk"),
+        sa.UniqueConstraint("id", "document_id", name="uq_document_chunks_id_document"),
     )
 
     op.create_table(
@@ -152,9 +167,9 @@ def upgrade() -> None:
             "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
         sa.ForeignKeyConstraint(
-            ["chunk_id"],
-            ["document_chunks.id"],
-            name=op.f("fk_narrative_evidence_chunk_id_document_chunks"),
+            ["chunk_id", "document_id"],
+            ["document_chunks.id", "document_chunks.document_id"],
+            name="fk_narrative_evidence_chunk_document_consistency",
         ),
         sa.ForeignKeyConstraint(
             ["document_id"],
@@ -208,6 +223,7 @@ def downgrade() -> None:
     op.drop_table("events")
     op.drop_index(op.f("ix_documents_ticker"), table_name="documents")
     op.drop_index(op.f("ix_documents_published_at"), table_name="documents")
+    op.drop_index("ix_documents_ticker_published_at", table_name="documents")
     op.drop_table("documents")
     op.drop_index(op.f("ix_asset_prices_ticker"), table_name="asset_prices")
     op.drop_index(op.f("ix_asset_prices_date"), table_name="asset_prices")

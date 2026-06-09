@@ -51,6 +51,27 @@ make migrate
 make test
 ```
 
+### Windows or No `make` Fallback
+
+If `make` is unavailable, run the underlying commands directly:
+
+```powershell
+python -m pip install -e ".[dev]"
+cd frontend
+npm.cmd install
+cd ..
+docker compose up -d postgres
+cd backend
+python -m alembic upgrade head
+cd ..
+python -m ruff check .
+python -m pytest
+cd frontend
+npm.cmd run build
+```
+
+Use `npm` instead of `npm.cmd` on macOS/Linux shells.
+
 ## Backend
 
 Run the API locally:
@@ -73,3 +94,7 @@ make frontend-dev
 ```
 
 The frontend is intentionally minimal until API/data contracts exist.
+
+## Phase 1 Schema Notes
+
+Documents include a `content_hash` and a uniqueness constraint on source type, ticker, source name, and hash to prevent duplicate ingestion later. A Postgres-only partial unique index on non-null document URLs is intentionally deferred until ingestion requirements make URL canonicalization rules clear.
