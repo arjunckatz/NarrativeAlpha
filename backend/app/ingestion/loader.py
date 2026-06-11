@@ -71,37 +71,38 @@ def ingest_documents(
             skipped += 1
             continue
 
-        db_document = Document(
-            source_type=document.source_type,
-            ticker=document.ticker,
-            title=document.title,
-            published_at=document.published_at,
-            source_name=document.source_name,
-            url=document.url,
-            content_hash=content_hash,
-            raw_text=document.raw_text,
-            metadata_=document.metadata,
-        )
-        session.add(db_document)
-
         try:
-            session.flush()
+            with session.begin_nested():
+                db_document = Document(
+                    source_type=document.source_type,
+                    ticker=document.ticker,
+                    title=document.title,
+                    published_at=document.published_at,
+                    source_name=document.source_name,
+                    url=document.url,
+                    content_hash=content_hash,
+                    raw_text=document.raw_text,
+                    metadata_=document.metadata,
+                )
+                session.add(db_document)
+                session.flush()
+
+                for chunk in chunks:
+                    session.add(
+                        DocumentChunk(
+                            document_id=db_document.id,
+                            chunk_index=chunk.chunk_index,
+                            text=chunk.text,
+                            bm25_text=chunk.bm25_text,
+                            embedding=None,
+                            metadata_=chunk.metadata,
+                        )
+                    )
+                session.flush()
         except IntegrityError:
-            session.rollback()
             skipped += 1
             continue
 
-        for chunk in chunks:
-            session.add(
-                DocumentChunk(
-                    document_id=db_document.id,
-                    chunk_index=chunk.chunk_index,
-                    text=chunk.text,
-                    bm25_text=chunk.bm25_text,
-                    embedding=None,
-                    metadata_=chunk.metadata,
-                )
-            )
         inserted += 1
         chunks_inserted += len(chunks)
 

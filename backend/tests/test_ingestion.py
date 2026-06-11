@@ -80,6 +80,22 @@ def test_ingestion_is_idempotent(tmp_path: Path, db_session: Session) -> None:
     assert db_session.query(DocumentChunk).count() == first.chunks_inserted
 
 
+def test_duplicate_records_in_same_file_are_skipped_without_duplicate_chunks(
+    tmp_path: Path,
+    db_session: Session,
+) -> None:
+    record = make_record()
+    path = write_documents(tmp_path / "documents.json", [record, record])
+
+    summary = ingest_document_file(db_session, path, chunk_size=70, chunk_overlap=15)
+
+    assert summary.documents_read == 2
+    assert summary.documents_inserted == 1
+    assert summary.documents_skipped == 1
+    assert db_session.query(Document).count() == 1
+    assert db_session.query(DocumentChunk).count() == summary.chunks_inserted
+
+
 @pytest.mark.parametrize(
     "bad_record, expected_message",
     [
