@@ -59,8 +59,7 @@ Current HTTP endpoints:
 
 - `GET /health`
 - `GET /api/version`
-
-The search service exists as backend application code, but no public search API route has been wired yet.
+- `GET /api/search`
 
 ## Frontend Setup
 
@@ -127,21 +126,36 @@ python -m app.ingestion.cli ../data/sample_documents.json
 
 Ingestion validates the full file before writing anything. Missing required fields, invalid `source_type`, invalid `published_at`, or empty `raw_text` stop the run without partial ingestion.
 
-## Search Status
+## Search API
 
-The current search implementation is backend-only and lexical-only.
+The current search implementation is lexical-only over ingested `DocumentChunk` rows.
 
-Supported in code:
+Example:
 
-- `SearchParams` validation for query, ticker, source type, date range, and limit.
+```text
+GET /api/search?q=export%20restrictions&ticker=NVDA&limit=5
+```
+
+Supported query parameters:
+
+- `q`
+- `ticker`
+- `source_type`
+- `start_date`
+- `end_date`
+- `limit`
+
+The endpoint returns matching document chunks with document metadata, chunk metadata, deterministic lexical scores, and text snippets.
+
+Search currently supports:
+
+- Query validation for query, ticker, source type, date range, and limit.
 - Candidate retrieval from `DocumentChunk` joined with `Document`.
-- Optional ticker, source type, start date, end date, and limit handling.
 - Deterministic lexical scoring based on phrase match, title term matches, term frequency, and unique query terms matched.
 - Snippet generation from chunk text.
 
 Not yet implemented:
 
-- Public `/api/search` route.
 - Frontend search UI.
 - Embeddings or vector search.
 - Hybrid retrieval.
