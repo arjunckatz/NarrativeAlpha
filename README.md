@@ -174,7 +174,7 @@ documents -> chunks -> lexical search
 documents -> chunks -> extracted events -> narrative candidates
 ```
 
-Narrative aggregation currently groups persisted or event-like rows in memory. It does not write to `narratives` or `narrative_scores` yet.
+Narrative aggregation currently groups persisted `Event` rows or event-like objects in memory. It does not write to `narratives` or `narrative_scores` yet.
 
 ## Event Extraction
 
