@@ -15,3 +15,5 @@ class NarrativeCandidateResponse(BaseModel):
     last_seen: date
     event_types: tuple[str, ...]
     supporting_event_ids: tuple[int, ...]
+    score: float | None = None
+    score_components: dict[str, float] | None = None

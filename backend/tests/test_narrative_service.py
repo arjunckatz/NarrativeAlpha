@@ -59,6 +59,13 @@ def test_service_reads_event_rows_and_returns_narrative_candidates(db_session: S
     assert candidates[0].last_seen == date(2026, 6, 1)
     assert candidates[0].event_types == ("export_restriction",)
     assert candidates[0].supporting_event_ids == (event_row.id,)
+    assert candidates[0].score == 58.0
+    assert candidates[0].score_components == {
+        "event_count_score": 6.0,
+        "confidence_score": 32.0,
+        "recency_score": 20.0,
+        "event_type_diversity_score": 0.0,
+    }
 
 
 def test_ticker_filter_works(db_session: Session) -> None:
@@ -118,19 +125,38 @@ def test_empty_event_table_returns_empty_list(db_session: Session) -> None:
 
 
 def test_output_ordering_is_deterministic(db_session: Session) -> None:
-    add_event(db_session, ticker="TSLA", event_type="guidance_cut")
-    add_event(db_session, ticker="AAPL", event_type="earnings_miss")
-    add_event(db_session, ticker="NVDA", event_type="export_restriction")
+    add_event(
+        db_session,
+        ticker="TSLA",
+        event_type="guidance_cut",
+        confidence=Decimal("0.95"),
+    )
+    add_event(
+        db_session,
+        ticker="AAPL",
+        event_type="earnings_miss",
+        confidence=Decimal("0.60"),
+    )
+    add_event(
+        db_session,
+        ticker="NVDA",
+        event_type="export_restriction",
+        confidence=Decimal("0.80"),
+    )
 
     first = NarrativeAggregationService(db_session).aggregate()
     second = NarrativeAggregationService(db_session).aggregate()
 
     assert first == second
     assert [(candidate.ticker, candidate.narrative_name) for candidate in first] == [
-        ("AAPL", "Earnings Weakness"),
-        ("NVDA", "Export Restrictions"),
         ("TSLA", "Guidance Concerns"),
+        ("NVDA", "Export Restrictions"),
+        ("AAPL", "Earnings Weakness"),
     ]
+    assert [candidate.score for candidate in first] == sorted(
+        (candidate.score for candidate in first),
+        reverse=True,
+    )
 
 
 def test_service_is_read_only(db_session: Session) -> None:

@@ -104,6 +104,13 @@ def test_narratives_successful_response_shape(
             "last_seen": "2026-06-01",
             "event_types": ["export_restriction"],
             "supporting_event_ids": [event_row.id],
+            "score": 58.0,
+            "score_components": {
+                "event_count_score": 6.0,
+                "confidence_score": 32.0,
+                "recency_score": 20.0,
+                "event_type_diversity_score": 0.0,
+            },
         }
     ]
 
@@ -180,16 +187,35 @@ def test_narratives_multiple_results_have_deterministic_order(
     narratives_client: tuple[TestClient, Session],
 ) -> None:
     client, session = narratives_client
-    add_event(session, ticker="TSLA", event_type="guidance_cut")
-    add_event(session, ticker="AAPL", event_type="earnings_miss")
-    add_event(session, ticker="NVDA", event_type="export_restriction")
+    add_event(
+        session,
+        ticker="TSLA",
+        event_type="guidance_cut",
+        confidence=Decimal("0.95"),
+    )
+    add_event(
+        session,
+        ticker="AAPL",
+        event_type="earnings_miss",
+        confidence=Decimal("0.60"),
+    )
+    add_event(
+        session,
+        ticker="NVDA",
+        event_type="export_restriction",
+        confidence=Decimal("0.80"),
+    )
 
     response = client.get("/api/narratives")
 
     assert response.status_code == 200
     payload = response.json()
     assert [(item["ticker"], item["narrative_name"]) for item in payload] == [
-        ("AAPL", "Earnings Weakness"),
-        ("NVDA", "Export Restrictions"),
         ("TSLA", "Guidance Concerns"),
+        ("NVDA", "Export Restrictions"),
+        ("AAPL", "Earnings Weakness"),
     ]
+    assert [item["score"] for item in payload] == sorted(
+        (item["score"] for item in payload),
+        reverse=True,
+    )
